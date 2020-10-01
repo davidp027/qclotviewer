@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Simple Polylines</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script
+      src="https://www.bing.com/api/maps/mapcontrol?key=AhGex9Mj403guyW8E0vfKr3a2amxzw1vqCIia-cDxUkeFXwR0gkSevjNDDlZfpUZ&callback=loadMapScenario"
+      defer
+    ></script>
+    <!-- jsFiddle will insert css and js -->
+  </head>
+  <body>
+		<div id="options">
+			<form onsubmit="processUserInput()" action="#update">
+				<input type="text" pattern="(([0-9]{7}),?)+" placeholder="5036500,5036046" id="lots"/>
+				<input type="submit" id="update" text="Afficher les bordures"/>
+			</form>
+		</div>
+		<div id="map"></div>
+	</div>
+  </body>
+
+<style>
+
+#options {
+    float: left;
+}
+#map { 
+    float: left;
+	height: 100%;
+	width: 100%;
+}
+
+/* Optional: Makes the sample page fill the window. */
+html,
+body {
+  overflow:hidden;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+</style>
+<script>
+	let currentLots = [];
+	let map = null;
+	let activePolylines = [];
+	let bounds = [];
+
+	// https://www.bing.com/api/maps/sdkrelease/mapcontrol/isdk/deletepolylines#JS
+	function resetPolyLines(){
+		for (var i = map.entities.getLength() - 1; i >= 0; i--) {
+			var polyline = map.entities.get(i);
+			if (polyline instanceof Microsoft.Maps.Polyline) {
+				map.entities.removeAt(i);
+			}
+		}
+	}
+
+	function updateMapPosition(map){
+		const boundsRect = Microsoft.Maps.LocationRect.fromLocations(bounds);
+		map.setView({
+			bounds: boundsRect,
+			padding: 20
+		});  
+	}
+
+	function updateMap(map){
+		for(const lot of currentLots){
+			if(lot.lotPerimeterCoords.length <= 0)
+				break;
+			for(const coord of lot.lotPerimeterCoords)
+				bounds.push(coord);
+			const path = new Microsoft.Maps.Polyline(lot.lotPerimeterCoords);
+			path.setOptions({
+				strokeColor: 'red',
+				strokeThickness: 2
+			});
+			map.entities.push(path);
+			activePolylines.push(path);
+		}
+		updateMapPosition(map);
+	}
+
+
+	function parseApiResults(perimeterPoints){
+		let result = [];
+	  let coords = perimeterPoints.split(",");
+	  for(const textCoord of coords){
+		const splittedCoord = textCoord.split(" ");
+		const currentCoord = Microsoft.Maps.Location.parseLatLong(splittedCoord[1] +"," + splittedCoord[0]);
+		result.push(currentCoord);
+	  }
+	  return result;
+	}
+	function getCoordinatesListFromLots(strLots){
+		let timestamp = Math.floor(Date.now() / 1000);
+		let apiUrl = "https://carto.cptaq.gouv.qc.ca/php/find_lot_v1.php?numero=" + strLots + "&epsg=4326&_dc=" + timestamp;
+		let request = new XMLHttpRequest();
+		request.open("GET", apiUrl, true);
+		request.onload = () => {
+			let response = request.responseText;
+			let arrMatches = [...response.matchAll(/MULTIPOLYGON\({3}(.+?)\){3}/g)];
+			let arrLots = strLots.split(",");
+			if(arrMatches.length != arrLots.length)
+				console.log("A lot was invalid.");
+			for(let i = 0; i < arrMatches.length; i++){
+				const lot = arrLots[i];
+				const lotCoords = arrMatches[i][1];
+				currentLots.push({
+					lotId: lot,
+					lotPerimeterCoords: parseApiResults(lotCoords)
+				});
+			}
+			
+			updateMap(map);
+		}
+		request.send();
+	}
+
+	
+	function processUserInput(){
+		const input = document.getElementById("lots").value;
+		if(/(([0-9]{7}),?)+/.test(input)){
+			currentLots = [];
+			bounds = [];
+			resetPolyLines();
+			poly = [];
+		} else {
+		    alert("Format invalide.");
+		}
+		
+		getCoordinatesListFromLots(input);
+		return false;
+	}
+	
+	// This example creates a 2-pixel-wide red polyline showing the path of
+	// the first trans-Pacific flight between Oakland, CA, and Brisbane,
+	// Australia which was made by Charles Kingsford Smith.
+	function loadMapScenario() {
+	  map = new Microsoft.Maps.Map(document.getElementById("map"), { });
+	  //getCoordinatesListFromLots("4016576,4016573");
+	}
+
+</script>
+</html>

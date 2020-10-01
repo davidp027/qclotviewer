@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Simple Polylines</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBIwzALxUPNbatRBj3Xi1Uhp0fFzwWNBkE&callback=initMap&libraries=&v=weekly"
+      defer
+    ></script>
+    <!-- jsFiddle will insert css and js -->
+  </head>
+  <body>
+		<div id="options">
+			<form onsubmit="processUserInput()" action="#update">
+				<input type="text" pattern="(([0-9]{7}),?)+" placeholder="5036500,5036046" id="lots"/>
+				<input type="submit" id="update" text="Afficher les bordures"/>
+			</form>
+		</div>
+		<div id="map"></div>
+	</div>
+  </body>
+
+<style>
+
+#options {
+    float: left;
+}
+#map { 
+    float: left;
+	height: 100%;
+	width: 100%;
+}
+
+/* Optional: Makes the sample page fill the window. */
+html,
+body {
+  overflow:hidden;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+</style>
+<script>
+	let currentLots = [];
+	let map = null;
+	// https://coderwall.com/p/hojgtq/auto-center-and-auto-zoom-a-google-map
+	let bounds = null;
+	let activePolylines = [];
+
+	function convertCoordToGoogleLatLng(coord){
+		return new google.maps.LatLng(coord.lat, coord.lng);
+	}
+
+	function updateMapPosition(map, coords){
+		map.fitBounds(bounds);  
+		map.panToBounds(bounds);
+	}
+
+	function updateMap(map){
+		let first = true;
+		for(const lot of currentLots){
+			if(lot.lotPerimeterCoords.length <= 0)
+				break;
+			if(first){
+				first = false;
+			  updateMapPosition(map, lot.lotPerimeterCoords[0]);
+			}
+			const path = new google.maps.Polyline({
+				path: lot.lotPerimeterCoords,
+				geodesic: true,
+				strokeColor: "#FF0000",
+				stokeOpacity: 1.0,
+				strokeWeight: 1
+			});
+			path.setMap(map);
+			activePolylines.push(path);
+		}
+	}
+
+
+	function parseApiResults(perimeterPoints){
+		let result = [];
+	  let coords = perimeterPoints.split(",");
+	  for(const textCoord of coords){
+		const splittedCoord = textCoord.split(" ");
+		const currentCoord = {
+			lng: parseFloat(splittedCoord[0], 10),
+			lat: parseFloat(splittedCoord[1], 10)
+		}
+		result.push(currentCoord);
+		bounds.extend(convertCoordToGoogleLatLng(currentCoord));
+	  }
+	  return result;
+	}
+	function getCoordinatesListFromLots(strLots){
+		let timestamp = Math.floor(Date.now() / 1000);
+		let apiUrl = "https://carto.cptaq.gouv.qc.ca/php/find_lot_v1.php?numero=" + strLots + "&epsg=4326&_dc=" + timestamp;
+		let request = new XMLHttpRequest();
+		request.open("GET", apiUrl, true);
+		request.onload = () => {
+			let response = request.responseText;
+			let arrMatches = [...response.matchAll(/MULTIPOLYGON\({3}(.+?)\){3}/g)];
+			let arrLots = strLots.split(",");
+			if(arrMatches.length != arrLots.length)
+				console.log("A lot was invalid.");
+			for(let i = 0; i < arrMatches.length; i++){
+				const lot = arrLots[i];
+				const lotCoords = arrMatches[i][1];
+				currentLots.push({
+					lotId: lot,
+					lotPerimeterCoords: parseApiResults(lotCoords)
+				});
+			}
+			
+			updateMap(map);
+		}
+		request.send();
+	}
+
+	
+	function processUserInput(){
+		const input = document.getElementById("lots").value;
+		if(/(([0-9]{7}),?)+/.test(input)){
+			currentLots = [];
+			bounds = new google.maps.LatLngBounds();
+			for(const poly of activePolylines)
+				poly.setMap(null);
+			poly = [];
+		} else {
+		    alert("Format invalide.");
+		}
+		
+		getCoordinatesListFromLots(input);
+		return false;
+	}
+	
+	// This example creates a 2-pixel-wide red polyline showing the path of
+	// the first trans-Pacific flight between Oakland, CA, and Brisbane,
+	// Australia which was made by Charles Kingsford Smith.
+	function initMap() {
+	  map = new google.maps.Map(document.getElementById("map"), {
+		zoom: 3,
+		center: {
+		  lat: 0,
+		  lng: -180,
+		},
+		mapTypeId: "terrain",
+	  });
+	  bounds = new google.maps.LatLngBounds();
+	  //getCoordinatesListFromLots("4016576,4016573");
+	}
+
+</script>
+</html>
