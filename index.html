@@ -11,10 +11,8 @@
   </head>
   <body>
 		<div id="options">
-			<form onsubmit="processUserInput()" action="#update">
-				<input type="text" pattern="(([0-9]{7}),?)+" placeholder="5036500,5036046" id="lots"/>
-				<input type="submit" id="update" text="Afficher les bordures"/>
-			</form>
+			<input type="text" pattern="(([0-9]{7}),?)+" placeholder="5036500,5036046" id="lots"/>
+			<input type="submit" onclick="processUserInput()" id="update" text="Afficher les bordures"/>
 		</div>
 		<div id="map"></div>
 	</div>
