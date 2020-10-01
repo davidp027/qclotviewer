@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Simple Polylines</title>
+    <title>Visualisateur de lots - Bing Maps</title>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
     <script
       src="https://www.bing.com/api/maps/mapcontrol?key=AhGex9Mj403guyW8E0vfKr3a2amxzw1vqCIia-cDxUkeFXwR0gkSevjNDDlZfpUZ&callback=loadMapScenario"
@@ -127,6 +127,7 @@ body {
 			poly = [];
 		} else {
 		    alert("Format invalide.");
+			return false;
 		}
 		
 		getCoordinatesListFromLots(input);
@@ -137,8 +138,18 @@ body {
 	// the first trans-Pacific flight between Oakland, CA, and Brisbane,
 	// Australia which was made by Charles Kingsford Smith.
 	function loadMapScenario() {
-	  map = new Microsoft.Maps.Map(document.getElementById("map"), { });
+	  map = new Microsoft.Maps.Map(document.getElementById("map"), {
+		mapTypeId: Microsoft.Maps.MapTypeId.aerial
+	  });
 	  //getCoordinatesListFromLots("4016576,4016573");
+	}
+	
+	window.onload = function(){
+		const queryString = window.location.search;
+		const urlParams = new URLSearchParams(queryString);
+		if(urlParams.has('lots'))
+			getCoordinatesListFromLots(urlParams.get('lots'));
+		
 	}
 
 </script>
