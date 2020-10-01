@@ -46,6 +46,10 @@ body {
 	let activePolylines = [];
 	let bounds = [];
 
+	function isLotInputValid(input){
+		return /(([0-9]{7}),?)+/.test(input);
+	}
+
 	// https://www.bing.com/api/maps/sdkrelease/mapcontrol/isdk/deletepolylines#JS
 	function resetPolyLines(){
 		for (var i = map.entities.getLength() - 1; i >= 0; i--) {
@@ -120,7 +124,7 @@ body {
 	
 	function processUserInput(){
 		const input = document.getElementById("lots").value;
-		if(/(([0-9]{7}),?)+/.test(input)){
+		if(isLotInputValid(input)){
 			currentLots = [];
 			bounds = [];
 			resetPolyLines();
@@ -129,7 +133,8 @@ body {
 		    alert("Format invalide.");
 			return false;
 		}
-		
+		if(document.location.hostname == "davidpdev1.github.io")
+			window.history.pushState(null, null, "/qclotviewer/?lots=" + input);
 		getCoordinatesListFromLots(input);
 		return false;
 	}
@@ -141,14 +146,19 @@ body {
 	  map = new Microsoft.Maps.Map(document.getElementById("map"), {
 		mapTypeId: Microsoft.Maps.MapTypeId.aerial
 	  });
+
 	  //getCoordinatesListFromLots("4016576,4016573");
 	}
 	
 	window.onload = function(){
+		// https://www.sitepoint.com/get-url-parameters-with-javascript/
 		const queryString = window.location.search;
 		const urlParams = new URLSearchParams(queryString);
-		if(urlParams.has('lots'))
-			getCoordinatesListFromLots(urlParams.get('lots'));
+		if(urlParams.has('lots')){
+			const lots = urlParams.get('lots');
+			if(isLotInputValid(lots))
+				getCoordinatesListFromLots(urlParams.get('lots'));
+		}
 		
 	}
 
