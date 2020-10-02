@@ -57,21 +57,23 @@ body {
 			}
 		}
 	}
+	
+	function getBoundsRect(){
+		return Microsoft.Maps.LocationRect.fromLocations(bounds);
+	}
 
 	function updateMapPosition(map){
-		const boundsRect = Microsoft.Maps.LocationRect.fromLocations(bounds);
 		map.setView({
-			bounds: boundsRect,
+			bounds: getBoundsRect(),
 			padding: 20
 		});  
 	}
 
-	function updateMap(map){
+	function buildMapPolylines(map){
 		for(const lot of currentLots){
 			if(lot.lotPerimeterCoords.length <= 0)
-				break;
-			for(const coord of lot.lotPerimeterCoords)
-				bounds.push(coord);
+				continue;
+				
 			const path = new Microsoft.Maps.Polyline(lot.lotPerimeterCoords);
 			path.setOptions({
 				strokeColor: 'red',
@@ -80,21 +82,26 @@ body {
 			map.entities.push(path);
 			activePolylines.push(path);
 		}
+		
+	}
+
+	function updateMap(map){
+		buildMapPolylines(map);
 		updateMapPosition(map);
 	}
 
-
 	function parseApiResults(perimeterPoints){
 		let result = [];
-	  let coords = perimeterPoints.split(",");
-	  for(const textCoord of coords){
-		const splittedCoord = textCoord.split(" ");
-		const currentCoord = Microsoft.Maps.Location.parseLatLong(splittedCoord[1] +"," + splittedCoord[0]);
-		result.push(currentCoord);
-	  }
-	  return result;
+		let coords = perimeterPoints.split(",");
+		for(const textCoord of coords){
+			const splittedCoord = textCoord.split(" ");
+			const currentCoord = Microsoft.Maps.Location.parseLatLong(splittedCoord[1] +"," + splittedCoord[0]);
+			result.push(currentCoord);
+			bounds.push(currentCoord);
+		}
+		return result;
 	}
-	function getCoordinatesListFromLots(strLots){
+	function getCoordinatesListFromLots(strLots, onFinished = () => updateMap(map) ){
 		let timestamp = Math.floor(Date.now() / 1000);
 		let apiUrl = "https://carto.cptaq.gouv.qc.ca/php/find_lot_v1.php?numero=" + strLots + "&epsg=4326&_dc=" + timestamp;
 		let request = new XMLHttpRequest();
@@ -114,7 +121,7 @@ body {
 				});
 			}
 			
-			updateMap(map);
+			onFinished();
 		}
 		request.send();
 	}
@@ -137,26 +144,29 @@ body {
 		return false;
 	}
 	
-	// This example creates a 2-pixel-wide red polyline showing the path of
-	// the first trans-Pacific flight between Oakland, CA, and Brisbane,
-	// Australia which was made by Charles Kingsford Smith.
 	function loadMapScenario() {
-	  map = new Microsoft.Maps.Map(document.getElementById("map"), {
-		mapTypeId: Microsoft.Maps.MapTypeId.aerial
-	  });
-
-	  //getCoordinatesListFromLots("4016576,4016573");
-	}
-	
-	window.onload = function(){
+		const p = 'lots'
 		// https://www.sitepoint.com/get-url-parameters-with-javascript/
 		const queryString = window.location.search;
 		const urlParams = new URLSearchParams(queryString);
-		if(urlParams.has('lots')){
-			const lots = urlParams.get('lots');
-			if(isLotInputValid(lots))
-				getCoordinatesListFromLots(urlParams.get('lots'));
+		const lots = urlParams.get(p);
+		if(isLotInputValid(lots)){
+			getCoordinatesListFromLots(urlParams.get(p), () => {
+				map = new Microsoft.Maps.Map(document.getElementById("map"), {
+					mapTypeId: Microsoft.Maps.MapTypeId.aerial,
+					bounds: getBoundsRect()
+				});
+				buildMapPolylines(map);
+			});
+		} else {
+			map = new Microsoft.Maps.Map(document.getElementById("map"), {
+				mapTypeId: Microsoft.Maps.MapTypeId.aerial
+			});
 		}
+	}
+	
+	window.onload = function(){
+
 		
 	}
 
